@@ -8,7 +8,16 @@ app.set('view engine', 'ejs');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(fileUpload());
+app.use(
+  fileUpload({
+    useTempFiles: true,
+    tempFileDir: '/tmp',
+    createParentPath: true,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    abortOnLimit: true,
+    responseOnLimit: 'File size too large',
+  })
+);
 
 app.get('/', (_req, res) => {
   res.status(200).render('form.ejs');
@@ -16,6 +25,8 @@ app.get('/', (_req, res) => {
 
 app.post('/upload', (req, res) => {
   try {
+    console.log(req.body, req.files);
+
     if (!req.body || Object.keys(req.body).length === 0) {
       throw new Error('Request body not found');
     }
