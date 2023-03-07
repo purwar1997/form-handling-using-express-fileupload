@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Form Handling</title>
+  </head>
+  <body>
+    <div class="mt-20 flex flex-col items-center gap-10">
+      <h1 class="text-3xl">Form Handling</h1>
+
+      <form
+        class="flex flex-col items-center"
+        action="/upload"
+        method="post"
+        enctype="multipart/form-data"
+      >
+        <div class="space-y-5">
+          <div class="flex flex-col items-start gap-2">
+            <label class="text-lg" for="name">Name</label>
+            <input
+              class="w-80 bg-[#FAF9FA] border border-[#505050] px-2.5 py-2 rounded focus:outline-[#656EF5]"
+              type="text"
+              name="name"
+              id="name"
+            />
+          </div>
+
+          <div class="flex flex-col items-start gap-2">
+            <label class="text-lg" for="email">Email</label>
+            <input
+              class="w-80 bg-[#FAF9FA] border border-[#505050] px-2.5 py-2 rounded focus:outline-[#656EF5]"
+              type="email"
+              name="email"
+              id="email"
+            />
+          </div>
+
+          <div class="flex flex-col items-start gap-2">
+            <label class="text-lg">Profile Image</label>
+            <input type="file" name="profileImage" multiple />
+          </div>
+        </div>
+
+        <button
+          class="mt-10 bg-[#656EF5] px-5 py-2 rounded text-white cursor-pointer"
+          type="submit"
+        >
+          Submit
+        </button>
+      </form>
+    </div>
+  </body>
+</html>
