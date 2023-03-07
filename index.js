@@ -1,5 +1,6 @@
 const express = require('express');
 const fileUpload = require('express-fileupload');
+const cloudinary = require('./config/cloudinary.config');
 const config = require('./config/config');
 
 const app = express();
@@ -11,7 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   fileUpload({
     useTempFiles: true,
-    tempFileDir: '/tmp',
+    tempFileDir: '/temp/',
     createParentPath: true,
     limits: { fileSize: 5 * 1024 * 1024 },
     abortOnLimit: true,
@@ -23,10 +24,8 @@ app.get('/', (_req, res) => {
   res.status(200).render('form.ejs');
 });
 
-app.post('/upload', (req, res) => {
+app.post('/upload', async (req, res) => {
   try {
-    console.log(req.body, req.files);
-
     if (!req.body || Object.keys(req.body).length === 0) {
       throw new Error('Request body not found');
     }
@@ -46,25 +45,42 @@ app.post('/upload', (req, res) => {
     }
 
     const profileImage = req.files.profileImage;
+    let uploads;
 
     if (Array.isArray(profileImage)) {
-      profileImage.forEach(image => {
-        const path = __dirname + '/uploads/' + image.name;
+      uploads = await Promise.all(
+        profileImage.map(async image => {
+          const path = __dirname + '/uploads/' + image.name;
 
-        image.mv(path, function (err) {
-          if (err) {
-            throw new Error('Error uploading file to the server');
-          }
-        });
-      });
+          image.mv(path, function (err) {
+            if (err) {
+              throw new Error('Error uploading file to the local server');
+            }
+          });
+
+          const res = await cloudinary.uploader.upload(path, {
+            use_filename: true,
+            folder: 'profile_images',
+          });
+
+          return res.secure_url;
+        })
+      );
     } else {
       const path = __dirname + '/uploads/' + profileImage.name;
 
       profileImage.mv(path, function (err) {
         if (err) {
-          throw new Error('Error uploading file to the server');
+          throw new Error('Error uploading file to the local server');
         }
       });
+
+      const res = await cloudinary.uploader.upload(path, {
+        use_filename: true,
+        folder: 'profile_images',
+      });
+
+      uploads = res.secure_url;
     }
 
     res.status(200).json({
@@ -72,7 +88,7 @@ app.post('/upload', (req, res) => {
       data: {
         name,
         email,
-        profileImage,
+        uploads,
       },
     });
   } catch (err) {
