@@ -8,7 +8,6 @@ const app = express();
 app.set('view engine', 'ejs');
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(
   fileUpload({
     useTempFiles: true,
@@ -20,36 +19,37 @@ app.use(
   })
 );
 
-app.get('/', (_req, res) => {
+app.get('/api', (_req, res) => {
   res.status(200).render('form.ejs');
 });
 
-app.post('/upload', async (req, res) => {
+app.post('/api/upload', async (req, res) => {
   try {
     if (!req.body || Object.keys(req.body).length === 0) {
-      throw new Error('Request body not found');
+      throw new Error('No fields were provided');
     }
 
-    const { name, email } = req.body;
+    const { name, email, password } = req.body;
 
-    if (!name) {
-      throw new Error('Please provide a name');
-    }
-
-    if (!email) {
-      throw new Error('Please provide an email');
+    if (!(name && email && password)) {
+      throw new Error('Please provide all the details');
     }
 
     if (!req.files || Object.keys(req.files).length === 0) {
       throw new Error('No files were uploaded');
     }
 
-    const profileImage = req.files.profileImage;
-    let uploads;
+    let { profilePhotos } = req.files;
 
-    if (Array.isArray(profileImage)) {
-      uploads = await Promise.all(
-        profileImage.map(async image => {
+    if (!Array.isArray(profilePhotos)) {
+      profilePhotos = [profilePhotos];
+    }
+
+    let images;
+
+    try {
+      images = await Promise.all(
+        profilePhotos.map(async image => {
           const path = __dirname + '/uploads/' + image.name;
 
           image.mv(path, function (err) {
@@ -58,43 +58,123 @@ app.post('/upload', async (req, res) => {
             }
           });
 
-          const res = await cloudinary.uploader.upload(path, {
-            use_filename: true,
-            folder: 'profile_images',
+          const response = await cloudinary.uploader.upload(path, {
+            folder: 'profilePhotos',
+            public_id: Date.now(),
+            resource_type: 'image',
+            tags: ['users', 'images'],
           });
 
-          return res.secure_url;
+          return { id: response.public_id, url: response.secure_url };
         })
       );
-    } else {
-      const path = __dirname + '/uploads/' + profileImage.name;
-
-      profileImage.mv(path, function (err) {
-        if (err) {
-          throw new Error('Error uploading file to the local server');
-        }
-      });
-
-      const res = await cloudinary.uploader.upload(path, {
-        use_filename: true,
-        folder: 'profile_images',
-      });
-
-      uploads = res.secure_url;
+    } catch (err) {
+      throw new Error('Error uploading file on cloudinary');
     }
 
     res.status(200).json({
       success: true,
+      message: 'Images successfully uploaded',
       data: {
         name,
         email,
-        uploads,
+        password,
+        images,
       },
     });
   } catch (err) {
     res.status(400).json({
       success: false,
       message: err.message,
+    });
+  }
+});
+
+app.get('/api/fetch', async (_req, res) => {
+  try {
+    const response = await cloudinary.api.resources_by_tag('users', {
+      resource_type: 'image',
+      max_results: 100,
+      tags: true,
+    });
+
+    const images = response.resources.map(resource => {
+      return { id: resource.public_id, url: resource.secure_url };
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Images successfully fetched',
+      images,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message || err.error.message,
+    });
+  }
+});
+
+app.get('/api/fetch/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      throw new Error('Please provide an id');
+    }
+
+    const publicId = 'profilePhotos/' + id;
+    const response = await cloudinary.api.resource(publicId, { resource_type: 'image' });
+    const image = { id: response.public_id, url: response.secure_url };
+
+    res.status(200).json({
+      success: true,
+      message: 'Image successfully fetched',
+      image,
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message || err.error.message,
+    });
+  }
+});
+
+app.delete('/api/delete', async (_req, res) => {
+  try {
+    await cloudinary.api.delete_resources_by_tag('users', { resource_type: 'image' });
+
+    res.status(200).json({
+      success: true,
+      message: 'Images successfully deleted',
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message || err.error.message,
+    });
+  }
+});
+
+app.delete('/api/delete/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      throw new Error('Please provide an id');
+    }
+
+    const publicId = 'profilePhotos/' + id;
+    await cloudinary.api.delete_resources([publicId], { resource_type: 'image' });
+
+    res.status(200).json({
+      success: true,
+      message: 'Image successfully deleted',
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      message: err.message || err.error.message,
     });
   }
 });

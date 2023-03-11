@@ -1,7 +1,7 @@
 {
   "name": "file-upload",
   "version": "1.0.0",
-  "description": "A project to upload files using express-fileupload",
+  "description": "A project to handle form using express-fileupload",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
